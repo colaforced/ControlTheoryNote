@@ -1,0 +1,249 @@
+\documentclass[UTF8,a4paper,10pt]{ctexart}
+\usepackage[left=2.50cm, right=2.50cm, top=2.50cm, bottom=2.50cm]{geometry} %页边距
+\CTEXsetup[format={\Large\bfseries}]{section} %设置章标题居左
+ 
+ 
+%%%%%%%%%%%%%%%%%%%%%%%
+% -- text font --
+% compile using Xelatex
+%%%%%%%%%%%%%%%%%%%%%%%
+% -- 中文字体 --
+%\setmainfont{Microsoft YaHei}  % 微软雅黑
+%\setmainfont{YouYuan}  % 幼圆    
+%\setmainfont{NSimSun}  % 新宋体
+%\setmainfont{KaiTi}    % 楷体
+%\setmainfont{SimSun}   % 宋体
+%\setmainfont{SimHei}   % 黑体
+% -- 英文字体 --
+%\usepackage{times}
+%\usepackage{mathpazo}
+%\usepackage{fourier}
+%\usepackage{charter}
+\usepackage{helvet}
+ 
+ 
+\usepackage{amsmath, amsfonts, amssymb} % math equations, symbols
+\usepackage[english]{babel}
+\usepackage{color}      % color content
+\usepackage{graphicx}   % import figures
+\usepackage{url}        % hyperlinks
+\usepackage{bm}         % bold type for equations
+\usepackage{multirow}
+\usepackage{booktabs}
+\usepackage{epstopdf}
+\usepackage{epsfig}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+
+\usepackage{easybmat}
+\renewcommand{\algorithmicrequire}{ \textbf{Input:}}     % use Input in the format of Algorithm  
+\renewcommand{\algorithmicensure}{ \textbf{Initialize:}} % use Initialize in the format of Algorithm  
+\renewcommand{\algorithmicreturn}{ \textbf{Output:}}     % use Output in the format of Algorithm  
+ 
+ 
+\usepackage{fancyhdr} %设置页眉、页脚
+%\pagestyle{fancy}
+\lhead{}
+\chead{}
+%\rhead{\includegraphics[width=1.2cm]{fig/ZJU_BLUE.eps}}
+\lfoot{}
+\cfoot{}
+\rfoot{}
+ 
+ 
+%%%%%%%%%%%%%%%%%%%%%%%
+%  设置水印
+%%%%%%%%%%%%%%%%%%%%%%%
+%\usepackage{draftwatermark}         % 所有页加水印
+%\usepackage[firstpage]{draftwatermark} % 只有第一页加水印
+% \SetWatermarkText{Water-Mark}           % 设置水印内容
+% \SetWatermarkText{\includegraphics{fig/ZJDX-WaterMark.eps}}         % 设置水印logo
+% \SetWatermarkLightness{0.9}             % 设置水印透明度 0-1
+% \SetWatermarkScale{1}                   % 设置水印大小 0-1    
+ 
+\usepackage{hyperref} %bookmarks
+\hypersetup{colorlinks, bookmarks, unicode} %unicode
+ 
+ 
+ 
+\title{\textbf{MPC公式推导笔记}}
+\author{ ColaForced}
+\date{\today}
+ 
+\begin{document}
+    \maketitle
+ 
+ 
+% \begin{abstract}
+% 这是一篇中文小论文。这个部分用来写摘要。摘要的章标题默认是英文，还没找到改成中文的方法:(
+% \end{abstract}
+
+
+\subparagraph{1. 最优控制}
+
+    为了系统在有约束条件下，系统某项表现达到最优，一般用代价函数最小表示。
+    比如说，火箭升空燃料代价最小，如何设计控制输入。
+    值得一提的是，选定目标不同，计算出的控制输入也不同，
+    比如说，追求快速升空，则控制输入势必是往油门最大化。
+
+    对于一个多目标相互约束问题，如汽车变道，
+    一方面要求轨迹误差尽可能小，另一方面要求侧向控制输入尽可能小（为了舒适度）。
+    在这种情况下，代价函数则是线性带权重的组合：
+    \begin{equation}
+        J = \int_{0}^{t}qe(s)^2 + ru(s)^2ds
+    \end{equation}\label{model}
+    其中，$u,e$分别表示控制输入和追踪误差的。$q,r$权重用于调整系统表现。
+
+    对于一般线性系统，则可以表现为
+        \begin{equation}
+            J = \int_{0}^{t}E^TQE + U^TRUds
+        \end{equation}
+    对于这样的二次型最优化问题，应该是有相对成体系的计算方案。
+
+\subparagraph{2. MPC算法}
+
+    对于一个离散线性系统:
+        \begin{equation}\label{model}
+            X_{k+1} = AX_{k} + BU_{k}
+        \end{equation}
+    显然，若已知初始条件$X_{k}$,和控制输入$U_{k}$,则势必可以计算出$X_{k+1}$.
+
+    
+    计算思路：
+
+        1. 观测/估计k时刻状态
+        
+        2. 最小化代价函数来设计输入， 代价函数是 
+        \begin{equation}
+            J = \sum_{k}^{N-1}({E_{K}^T Q E_{K} + U_{K}^T R U_{K}}) + E_N^TFE_N
+        \end{equation}
+
+        3. 仅用计算出的最优$U_k$作为输入，然后再次循环。
+    
+    Tips: 称之为滚动时域优化。
+
+\subparagraph{3. MPC代价函数公式推导变形}
+
+目标，滚动时域优化，当前难点在于解决最小化代价函数怎么计算。
+既已知道LQR中二次型优化问题怎么计算， 
+so, 当前思想就是想把MPC中的优化问题转化成二次型的形式。
+
+先做一些声明：
+
+\begin{equation}
+    \hat{X}_k = [X_{(k|k)}, X_{(k+1|k)}, ..., X_{(k+N|k)}]^T
+\end{equation}
+
+\begin{equation}
+    \hat{U}_k = [U_{(k|k)}, U_{(k+1|k)}, ..., U_{(k+N-1|k)}]^T
+\end{equation}
+其中$X_{(k|k)} = X_k$表示初始状态，
+$ X_{(k+1|k)}$ 则是根据($\ref{model}$)和$U_{(k|k)},X_k$计算出来的，
+相应地，$X_{(k+1|k)}, ..., X_{(k+N|k)}$是进一步迭代计算得到的。
+
+
+误差函数定义：
+
+    \begin{equation}\label{MPC_J}
+        J = \sum_{k}^{N-1}{(X_{(K+i|k)}^T Q X_{(K+i|k)} + U_{(k+i|k)}^T R U_{(K+i|k)})} + X_{(k+N)}^T F X_{(k+N)}
+    \end{equation}
+
+为了带着目的去看推导，先给出最后推导出的代价函数形式：
+
+    \begin{equation}\label{J_AIM}
+        J = {\hat{X}_k^T G \hat{X}_k + \hat{U}_k^T H \hat{U}_k} + 2\hat{X}_k^T E \hat{U}_k
+    \end{equation}
+可以看到，就是为了转换成二次型的形式，把累加项转换成$\hat{X}_k, \hat{U}_k$整体项。
+
+so,既然结果看到了，加上能用的信息显然就是动态模型(\ref{model})了，那么，就代公式吧！
+  
+    \begin{equation}
+        \left\{
+            \begin{array}{cc}
+                X_{(k|k)} = X_{k},\\ \\
+                X_{(k+1|k)} = AX_{k} + BU_{k|K},\\ \\
+                X_{(k+2|k)} = A^2X_{k} + ABU_{k|k} + BU_{k+1|K},\\ \\
+                \dots,\\ \\ 
+                X_{(k+N|k)} = A^NX_{k} + A^{N-1}BU_{k|K} + \dots +  BU_{k+N-1|K}
+            \end{array}
+        \right.
+    \end{equation}
+
+把上式转换成
+
+    \begin{equation}\label{MPC_TM}
+        \hat{X}_k = M\hat{X}_k + C\hat{U}_k
+    \end{equation}
+其中，
+\begin{equation}
+    M=\left[
+        \begin{BMAT}(rc){c}{ccccc}
+            I  \\
+            A  \\
+            A^2  \\
+            \vdots \\
+            A^N
+        \end{BMAT}
+        \right],
+\end{equation}
+
+\begin{equation}
+    C = \left[
+        \begin{BMAT}(rc){cccc}{ccccc}
+            0 & 0 & \dots & 0  \\
+            B & 0 & \dots & 0 \\
+            AB & B & \dots & 0 \\
+            \vdots & \vdots & \vdots & B \\
+            A^{N-1}B & A^{N-2}B & ... &...
+        \end{BMAT}
+        \right],
+\end{equation}
+
+
+在回顾公式(\ref{MPC_J}), 对其展开，再合并，可以得到
+
+    \begin{equation}\label{MPC_J2}
+        J = {\hat{X}_k^T \bar{Q}  \hat{X}_k + \hat{U}_k^T \bar{R} \hat{U}_k}
+    \end{equation}
+其中，
+    \begin{equation}
+        \bar{Q} = \left[
+            \begin{BMAT}(rc){ccccc}{ccccc}
+                Q & 0 & 0 &\dots & 0  \\
+                0 & Q & 0 &\dots & 0 \\
+                0 & 0 & Q & 0& 0 \\
+                \vdots & \vdots & 0 &\vdots & 0 \\
+                0 & 0 & 0 &0 &F
+            \end{BMAT}
+            \right],
+    \end{equation}
+
+    \begin{equation}
+        \bar{R} = \left[
+            \begin{BMAT}(rc){ccccc}{ccccc}
+                R & 0 & 0 &\dots & 0  \\
+                0 & R & 0 &\dots & 0 \\
+                0 & 0 & R & 0& 0 \\
+                \vdots & \vdots & 0 &\vdots & 0 \\
+                0 & 0 & 0 &0 &R
+            \end{BMAT}
+            \right],
+    \end{equation}
+
+
+再把上式(\ref{MPC_J2})带入(\ref{MPC_TM})可以得到：
+
+\begin{equation}
+    J = \hat{X}_k^T M^T \bar{Q} M \hat{X}_K + \hat{X}_k^T M^T \bar{Q} C \hat{U}_k
+    + \hat{U}_k^T C^T \bar{Q} M^T \hat{X}_k
+    + \hat{U}_k^T C^T \bar{Q} C \hat{U}_k + \hat{U}_k^T \bar{R} \hat{U}_k
+\end{equation}
+再简化成(\ref{J_AIM})即可。
+
+
+\subparagraph{4. 学习来源} https://www.bilibili.com/video/BV1SQ4y1Y7FG
+
+
+    神仙UP主DR\_CAN， 我愿称之为YYDS！！！
+    
+\end{document}
