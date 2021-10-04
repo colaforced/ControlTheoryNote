@@ -1,0 +1,224 @@
+\documentclass[UTF8,a4paper,10pt]{ctexart}
+\usepackage[left=2.50cm, right=2.50cm, top=2.50cm, bottom=2.50cm]{geometry} %页边距
+\CTEXsetup[format={\Large\bfseries}]{section} %设置章标题居左
+ 
+ 
+%%%%%%%%%%%%%%%%%%%%%%%
+% -- text font --
+% compile using Xelatex
+%%%%%%%%%%%%%%%%%%%%%%%
+% -- 中文字体 --
+%\setmainfont{Microsoft YaHei}  % 微软雅黑
+%\setmainfont{YouYuan}  % 幼圆    
+%\setmainfont{NSimSun}  % 新宋体
+%\setmainfont{KaiTi}    % 楷体
+%\setmainfont{SimSun}   % 宋体
+%\setmainfont{SimHei}   % 黑体
+% -- 英文字体 --
+%\usepackage{times}
+%\usepackage{mathpazo}
+%\usepackage{fourier}
+%\usepackage{charter}
+\usepackage{helvet}
+ 
+ 
+\usepackage{amsmath, amsfonts, amssymb} % math equations, symbols
+\usepackage[english]{babel}
+\usepackage{color}      % color content
+\usepackage{graphicx}   % import figures
+\usepackage{url}        % hyperlinks
+\usepackage{bm}         % bold type for equations
+\usepackage{multirow}
+\usepackage{booktabs}
+\usepackage{epstopdf}
+\usepackage{epsfig}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\renewcommand{\algorithmicrequire}{ \textbf{Input:}}     % use Input in the format of Algorithm  
+\renewcommand{\algorithmicensure}{ \textbf{Initialize:}} % use Initialize in the format of Algorithm  
+\renewcommand{\algorithmicreturn}{ \textbf{Output:}}     % use Output in the format of Algorithm  
+\usepackage{CJKulem}
+
+
+ 
+\usepackage{fancyhdr} %设置页眉、页脚
+%\pagestyle{fancy}
+\lhead{}
+\chead{}
+%\rhead{\includegraphics[width=1.2cm]{fig/ZJU_BLUE.eps}}
+\lfoot{}
+\cfoot{}
+\rfoot{}
+ 
+
+ 
+\usepackage{hyperref} 
+\hypersetup{colorlinks, bookmarks, unicode} 
+ 
+\begin{document}
+\subparagraph{1. 问题描述}
+    现有系统模型如下：
+    \begin{equation}
+        \left\{
+            \begin{array}{cc}
+               x_k = Ax_{k-1}+Bu_{k-1} + w_{k-1},\\ \\
+               y_k = Cx_{k} + v_{k}
+            \end{array}
+        \right.
+    \end{equation}\label{model}
+
+其中，列向量$x$表示系统内部状态变量，$A$表示系统状态转移矩阵，$B$表示控制输入矩阵，$y$表示测量值，
+$w$和$v$表示均为过程噪声和测量噪声列向量，满足正态分布且协方差矩阵分别为$Q$,$R$.
+
+如果不考虑噪声$w$或者$v$，我们可以得到系统$k$时刻的估计值值为
+\begin{equation}
+    \hat{x}_{\bar{k}} = A\hat{x}_{k-1}+Bu_{k-1} \quad \text{or} \quad  \hat{x}_{k_{m}} = C^{-1}y_k
+\end{equation}\label{predict_forward}
+目前来说，我们手上有的数据是一个受噪声影响的先验估计值$\hat{x}_{\bar{k}}$和一个受噪声影响的测量值 $\hat{x}_{k_{m}}$。
+问题来了，我们应该\uline{如何使用这两个不太准确的值来得出一个相对精确的后验估计$\hat{x}_{k}$}？.
+
+\subparagraph{2. 数据融合}
+    根据滤波思想中的线性加权组合数据，可以尝试以下方案
+    \begin{equation}
+        \hat{x}_{k} = \hat{x}_{\bar{k}} + G(\hat{x}_{k_{m}}- \hat{x}_{\bar{k}})
+    \end{equation}\label{predict_r}
+
+    显然，上述思路中描述的是，给状态变量的先验估计和测量值分别给不同的权重，再取和。简单的用$K_k=GC^{-1}$做替换可以得到
+    \begin{equation}
+        \hat{x}_{k} = \hat{x}_{\bar{k}} + K_k(y_k- C\hat{x}_{\bar{k}})\label{predict}
+    \end{equation}
+    
+    到目前为止，我们使用系统的上一时刻$k-1$的估计状态$\hat{x}_{k-1}$和系统输入计算出了当前时刻$k$的状态的先验估计值$\hat{x}_{\bar{k}}$，
+    手上还有的数据是当前时刻$k$的测量值$y_k$，结合两者设计了一个数据融合算法(4)，
+    当前问题在于，\uline{如何选择合适的增益$K_k$(称之为卡尔曼增益),来使得系统当前时刻$k$的状态的后验估计值更接近真实值$x_k$。}
+
+\subparagraph{3. 卡尔曼增益设计}
+    我们设计卡尔曼增益的目的是使系统$k$时刻的估计值$\hat{x}_k$尽可能向真实值$x_k$靠拢，在这里，我们要用符号$e_k$来表示两者之间的误差：
+    \begin{equation}
+        e_k = x_k - \hat{x}_k
+    \end{equation}\label{e_k}
+    可以简单推导出，$e_k=[e_1,e_2,...,e_n]^T$也该是一个正态分布的列向量，且用符号$P$表示其协方差矩阵，可以知道，
+    \begin{equation}
+        P_k = E[e^T_k e_k] = E[(x_k - \hat{x}_k)^T(x_k - \hat{x}_k)]
+    \end{equation}\label{sdsf}
+    
+    考虑一下，怎样才能算是说系统$k$时刻的估计值$\hat{x}_k$向真实值$x_k$靠拢的很好呢，也就是说这个估计怎样才能算最优呢？
+    \uline{通过计算估计误差的协方差矩阵的迹$tr(M)$，$tr(M)$越小，估计误差的协方差的迹越小，我们认为此时系统的估计最优。}
+    这一块估计最优的来源需要重新理解，两个正态分布数据融合？贝叶斯滤波?\\    
+    1. \href{https://blog.csdn.net/varyshare/article/details/97642209}{贝叶斯滤波----为什么是两个高斯分布相乘相乘}\\
+    2. \href{https://blog.csdn.net/michaelhan3/article/details/85453368}{高斯分布相乘仍旧是高斯分布，且均值为*}\\
+    3. \href{https://zhuanlan.zhihu.com/p/105496881}{最小化方差，极大似然估计的联系}\\
+
+    把（4）代入（6）中，可以得到
+    \begin{equation}
+        \begin{aligned}
+            P_k &= E[(x_k - \hat{x}_k)(x_k - \hat{x}_k)^T]\\
+              &= E[(x_k - \hat{x}_{\bar{k}} - K_k(y_k- C\hat{x}_{\bar{k}})) (x_k - \hat{x}_{\bar{k}} - K_k(y_k- C\hat{x}_{\bar{k}}))^T]\\
+              &= E[(x_k - \hat{x}_{\bar{k}} - K_k(Cx_{k} + v_{k}- C\hat{x}_{\bar{k}})) (x_k - \hat{x}_{\bar{k}} - K_k(Cx_{k} + v_{k}- C\hat{x}_{\bar{k}}))^T]\\
+            %   &= E[(x_k - \hat{x}_{\bar{k}} - K_k(Cx_{k} + v_{k}- C\hat{x}_{\bar{k}})) (x_k - \hat{x}_{\bar{k}} - K_k(Cx_{k} + v_{k}- C\hat{x}_{\bar{k}}))^T]\\
+        \end{aligned}
+    \end{equation}
+    定义先验估计误差$e_{\bar{k}} = x_k - \hat{x}_{\bar{k}}$且用$P_{\bar{k}}$来表示先验估计误差的协方差,则有
+    \begin{equation}
+        \begin{aligned}
+            P_k  & = E[(e_{\bar{k}} - K_k(v_k + Ce_{\bar{k}}) (e_{\bar{k}} - K_k(v_k- Ce_{\bar{k}})^T]\\
+                  & = E[((I-K_kC)e_{\bar{k}} -K_kv_k) ((I-K_kC)e_{\bar{k}} -K_kv_k)^T]\\
+                  & = E[(I-K_kC)e_{\bar{k}}e^T_{\bar{k}}(I-K_kC)^T +  K_kv_kv^T_kK^T_k]
+                    + E[(I-K_kC)e_{\bar{k}}v^T_k K^T_k] + E[K_kv_ke^T_{\bar{k}}(I-K_kC)]\\
+                  & = E[(I-K_kC)e_{\bar{k}}e^T_{\bar{k}}(I-K_kC)^T +  K_kv_kv^T_kK^T_k]\\
+                  & = (I-K_kC)P_{\bar{k}}(I-K_kC)^T + K_kRK^T_k
+        \end{aligned}
+    \end{equation}
+    附注：其中第三个等式到第四个等式用到了
+    $E[(I-K_kC)e_{\bar{k}}v^T_k K^T_k] = (I-K_kC)E [e_{\bar{k}}]E[v^T_k]K^T_k = 0$,
+    相似地，有$E[K_kv_ke^T_{\bar{k}}(I-K_kC)]=0$
+
+    在（8）的基础上继续推导，可以得到
+    \begin{equation}
+        \begin{aligned}
+            tr[P_k] & = tr[(I-K_kC)P_{\bar{k}}(I-K_kC)^T + K_kRK^T_k]\\
+                  & = tr [(P_{\bar{k}} -K_kCP_{\bar{k}})(I-C^TK^T_k) + K_kRK^T_k]\\
+                  & = tr [P_{\bar{k}} -K_kCP_{\bar{k}} - P_{\bar{k}}C^TK^T_k + K_kCP_{\bar{k}}C^TK^T_k+K_kRK^T_k ]\\
+                  & = tr [P_{\bar{k}} -2K_kCP_{\bar{k}} + K_kCP_{\bar{k}}C^TK^T_k+K_kRK^T_k ]
+        \end{aligned}
+    \end{equation}
+
+    化简到（9）,则下一步就是对卡尔曼增益$K_k$求导，求出极值点，则认为该点处的估计误差的协方差的迹$tr(P_k)$最小,求导并使之为0如下：
+    \begin{equation}
+            \frac{d(tr(P_k))}{d(K_k)} = -2P^T_{\bar{k}}C + 2K_kCP_{\bar{k}}C^T+ 2K_kR=0
+    \end{equation}
+    上述推导用到如下公式：
+    \begin{equation}\nonumber
+        \begin{aligned}
+            &\frac{d(tr(AB)}{dA} = B^T\\
+            &\frac{d(tr(ABA^T))}{dA} = A(B+B^T)
+        \end{aligned}
+    \end{equation}
+    由（10）可以得到，$-P^T_{\bar{k}}C + K_k(CP_{\bar{k}}C^T+ R)=0$,即，
+    \begin{equation}
+        K_k = \frac{P^T_{\bar{k}}C}{CP_{\bar{k}}C^T+ R}
+    \end{equation}
+
+    到目前为止，我们使用$k$时刻先验估计协方差矩阵$P_{\bar{k}}$计算出$k$时刻的卡尔曼增益$K_k$,使得数据融合算法（4）得到的系统状态估计值$\hat{x}_k$是最优估计,
+    (最优这一说法还未考量）;
+    而$k$时刻先验估计协方差矩阵$P_{\bar{k}}$的计算方法还为确定。
+
+    \subparagraph{4. 先验估计协方差矩阵$P_{\bar{k}}$推导}
+        根据先验估计协方差矩阵$P_{\bar{k}}$的定义,可以知道
+        \begin{equation}
+            \begin{aligned}
+                P_{\bar{k}} &= E[e_{\bar{k}}e^T_{\bar{k}}]\\
+                            &= E[(x_k - \hat{x}_{\bar{k}}) (x_k - \hat{x}_{\bar{k}})^T]\\
+            \end{aligned}
+        \end{equation}
+    而根据系统模型（1），和先验估计的定义（2），可知
+    \begin{equation}
+        \begin{aligned}
+            x_k - \hat{x}_{\bar{k}} &= Ax_{k-1}+Bu_{k-1} + w_{k-1} - (A\hat{x}_{k-1} + Bu_{k-1})\\
+                                    &= A(x_{k-1} -\hat{x}_{k-1}) + w_{k-1}\\
+                                    &= Ae_{k-1}+ w_{k-1}\\
+        \end{aligned}
+    \end{equation}
+    上述公式的口语翻译是：$k$时刻的先验估计误差等于$k-1$时刻的估计误差与A的乘积再加上过程噪声。
+    把（13）代入（12）可得：
+    \begin{equation}
+        \begin{aligned}
+            P_{\bar{k}} &= E[(x_k - \hat{x}_{\bar{k}}) (x_k - \hat{x}_{\bar{k}})^T]\\
+                        &= E[(Ae_{k-1}+ w_{k-1}))(e^T_{k-1}A^T+ w^T_{k-1})]\\
+                        &= E[Ae_{k-1}e^T_{k-1}A^T] + E[w_{k-1}w_{k-1}^T]\\
+                        &= AP_{k-1}A^T + Q
+        \end{aligned}
+    \end{equation}
+    上述推导结果，即为所需要求的先验估计协方差矩阵$P_{\bar{k}}$的计算方法。
+
+    \subparagraph{卡尔曼滤波过程}
+    基本的推导已经完成，下面给出卡尔曼滤波的全过程。
+    初始条件，给定$k-1$时刻后验估计值$\hat{x}_{k-1}$，控制输入$u_{k-1}$,估计误差协方差$P_{k-1}$.
+
+    步骤一：计算先验估计值$\hat{x}_{\bar{k}}$
+    \begin{equation}
+        \hat{x}_{\bar{k}} = A\hat{x}_{k-1} + Bu_{k-1}
+    \end{equation}
+
+    步骤二：计算先验误差协方差$P_{\bar{k}}$
+    \begin{equation}
+        P_{\bar{k}} = AP_{k-1}A^T + Q
+    \end{equation}
+
+    步骤三：计算卡尔曼增益$K_k$
+    \begin{equation}
+        K_k = \frac{P^T_{\bar{k}}C^T}{CP_{\bar{k}}C^T+ R}
+    \end{equation}
+
+    步骤四：计算后验估计值$\hat{x}_k$
+    \begin{equation}
+        \hat{x}_{k} = \hat{x}_{\bar{k}} + K_k(y_k- C\hat{x}_{\bar{k}})
+    \end{equation}
+
+    步骤五：更新误差协方差
+    \begin{equation}
+        P_k = (I - K_kC)P_{\bar{k}}
+    \end{equation}
+    
+    补充步骤五的推导：把（11）代入（8）即可得到
+\end{document}
