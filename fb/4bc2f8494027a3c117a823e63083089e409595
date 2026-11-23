@@ -1,0 +1,19 @@
+README.md
+  s_b7a46a7cc24793::t_68441c51506836 2-42
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.52-trip",
+  "base_commit_sha": "fb4bc2f8494027a3c117a823e63083089e409595",
+  "prompts": {},
+  "sessions": {
+    "s_b7a46a7cc24793": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8c04a403-6c6a-49f4-8bb8-2565616708ca",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "pengyong <pengyong@trip.com>"
+    }
+  }
+}
